@@ -1,7 +1,9 @@
 #pragma once
 
-#include <QWidget>
 #include "image_preview.h"
+#include <QWidget>
+
+class DicomMetadataLabel;
 
 class MainWindow : public QWidget
 {
@@ -9,13 +11,14 @@ class MainWindow : public QWidget
 protected:
 
     ImagePreview* PreviewReference = nullptr;
-
-public:
-
-    explicit MainWindow(QWidget* parent = nullptr);
+    DicomMetadataLabel* MetadataLabel = nullptr;
 
 private:
 
     void OpenDicomFile();
+
+public:
+
+    explicit MainWindow(QWidget* parent = nullptr);
 
 };

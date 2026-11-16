@@ -5,12 +5,12 @@
 class ImagePreview : public QLabel
 {
 
-public:
-
-    using QLabel::QLabel;
-
 protected:
 
     void paintEvent(QPaintEvent* event) override;
+
+public:
+
+    explicit ImagePreview(const QString& text, QWidget* parent = nullptr);
 
 };

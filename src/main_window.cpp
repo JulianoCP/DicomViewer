@@ -1,29 +1,28 @@
 #include "main_window.h"
 #include "image_preview.h"
-
+#include "dicom_metadata_label.h"
 #include <QByteArray>
 #include <QFileDialog>
 #include <QImage>
 #include <QPixmap>
 #include <QPushButton>
-#include <QSizePolicy>
 #include <QVBoxLayout>
+#include <dcmtk/dcmdata/dctk.h>
 #include <dcmtk/dcmimgle/dcmimage.h>
 
 MainWindow::MainWindow(QWidget* parent) : QWidget(parent)
 {
     setWindowTitle("Visualizador DICOM");
-    resize(1280, 720);
+    resize(800, 600);
 
     auto* layout = new QVBoxLayout(this);
     auto* openButton = new QPushButton("Abrir DICOM");
 
     PreviewReference = new ImagePreview("Selecione uma imagem DICOM");
-    PreviewReference->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
-    PreviewReference->setAlignment(Qt::AlignCenter);
-    PreviewReference->setTextFormat(Qt::PlainText);
+    MetadataLabel = new DicomMetadataLabel(this);
 
     layout->addWidget(PreviewReference, 1);
+    layout->addWidget(MetadataLabel);
     layout->addWidget(openButton);
 
     connect(openButton, &QPushButton::clicked, this, &MainWindow::OpenDicomFile);
@@ -38,8 +37,20 @@ void MainWindow::OpenDicomFile()
         return;
     }
 
+    MetadataLabel->hide();
+    DcmFileFormat dicomFile;
+
     const QByteArray filePath = path.toLocal8Bit();
-    DicomImage image(filePath.constData());
+    const OFCondition loadStatus = dicomFile.loadFile(filePath.constData());
+
+    if (loadStatus.bad())
+    {
+        PreviewReference->setText(QString("Erro ao ler o DICOM: %1").arg(loadStatus.text()));
+        return;
+    }
+
+    DcmDataset* dataset = dicomFile.getDataset();
+    DicomImage image(dataset, dataset->getOriginalXfer());
 
     if (image.getStatus() != EIS_Normal)
     {
@@ -63,4 +74,5 @@ void MainWindow::OpenDicomFile()
     const QImage grayscale(pixels, imageWidth, imageHeight, imageWidth, QImage::Format_Grayscale8);
 
     PreviewReference->setPixmap(QPixmap::fromImage(grayscale.copy()));
+    MetadataLabel->ShowMetadata(*dataset, imageWidth, imageHeight);
 }

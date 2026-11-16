@@ -1,7 +1,14 @@
 #include "image_preview.h"
-
 #include <QPainter>
 #include <QPixmap>
+#include <QSizePolicy>
+
+ImagePreview::ImagePreview(const QString& text, QWidget* parent): QLabel(text, parent)
+{
+    setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    setAlignment(Qt::AlignCenter);
+    setTextFormat(Qt::PlainText);
+}
 
 void ImagePreview::paintEvent(QPaintEvent* event)
 {

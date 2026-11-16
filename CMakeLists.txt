@@ -7,8 +7,12 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(DCMTK CONFIG REQUIRED)
 add_executable(DicomViewer
     src/main.cpp
+    src/main_window.h
     src/main_window.cpp
+    src/image_preview.h
     src/image_preview.cpp
+    src/dicom_metadata_label.h
+    src/dicom_metadata_label.cpp
 )
 target_link_libraries(DicomViewer PRIVATE Qt6::Widgets DCMTK::dcmimgle DCMTK::dcmjpeg)
 message(STATUS "Qt version: ${Qt6_VERSION}")
