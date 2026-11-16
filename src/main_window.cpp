@@ -1,34 +1,61 @@
 #include "main_window.h"
 #include "image_preview.h"
 #include "dicom_metadata_label.h"
+#include <QDoubleSpinBox>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QSignalBlocker>
 #include <QByteArray>
 #include <QFileDialog>
 #include <QImage>
 #include <QPixmap>
 #include <QPushButton>
 #include <QVBoxLayout>
-#include <dcmtk/dcmdata/dctk.h>
-#include <dcmtk/dcmimgle/dcmimage.h>
 
 MainWindow::MainWindow(QWidget* parent) : QWidget(parent)
 {
     setWindowTitle("Visualizador DICOM");
-    resize(800, 600);
+    resize(1280, 720);
 
     auto* layout = new QVBoxLayout(this);
     auto* openButton = new QPushButton("Abrir DICOM");
 
-    PreviewReference = new ImagePreview("Selecione uma imagem DICOM");
     MetadataLabel = new DicomMetadataLabel(this);
+    PreviewReference = new ImagePreview("Selecione uma imagem DICOM");
 
-    layout->addWidget(PreviewReference, 1);
+    WindowControls = new QWidget(this);
+    ControlsLayout = new QHBoxLayout(WindowControls);
+    LevelInput = new QDoubleSpinBox(WindowControls);
+
+    LevelInput->setRange(-1000000.0, 1000000.0);
+    LevelInput->setDecimals(2);
+    LevelInput->setKeyboardTracking(false);
+
+    WidthInput = new QDoubleSpinBox(WindowControls);
+    WidthInput->setRange(1.0, 1000000.0);
+    WidthInput->setDecimals(2);
+    WidthInput->setKeyboardTracking(false);
+
+    ControlsLayout->addStretch();
+    ControlsLayout->setContentsMargins(0, 0, 0, 0);
+    ControlsLayout->addWidget(new QLabel("Window Level", WindowControls));
+    ControlsLayout->addWidget(LevelInput);
+    ControlsLayout->addWidget(new QLabel("Window Width", WindowControls));
+    ControlsLayout->addWidget(WidthInput);
+    ControlsLayout->addStretch();
+
+    WindowControls->hide();
+
+    connect(LevelInput, &QDoubleSpinBox::valueChanged, this, &MainWindow::ApplyWindowSettings);
+    connect(WidthInput, &QDoubleSpinBox::valueChanged, this, &MainWindow::ApplyWindowSettings);
+
     layout->addWidget(MetadataLabel);
+    layout->addWidget(PreviewReference, 1);
+    layout->addWidget(WindowControls);
     layout->addWidget(openButton);
 
     connect(openButton, &QPushButton::clicked, this, &MainWindow::OpenDicomFile);
 }
-
-MainWindow::~MainWindow() = default;
 
 void MainWindow::OpenDicomFile()
 {
@@ -40,6 +67,7 @@ void MainWindow::OpenDicomFile()
     }
 
     MetadataLabel->hide();
+    WindowControls->hide();
 
     CurrentImage.reset();
     CurrentFile = std::make_unique<DcmFileFormat>();
@@ -76,6 +104,30 @@ void MainWindow::OpenDicomFile()
     }
 
     MetadataLabel->ShowMetadata(*dataset,static_cast<int>(CurrentImage->getWidth()), static_cast<int>(CurrentImage->getHeight()));
+
+    if (CurrentImage->getWindow(WindowCenter, WindowWidth))
+    {
+        const QSignalBlocker blockLevel(LevelInput);
+        const QSignalBlocker blockWidth(WidthInput);
+
+        LevelInput->setValue(WindowCenter);
+        WidthInput->setValue(WindowWidth);
+
+        WindowControls->show();
+    }
+}
+
+void MainWindow::ApplyWindowSettings()
+{
+    if (!CurrentImage)
+    {
+        return;
+    }
+
+    if (CurrentImage->setWindow(LevelInput->value(), WidthInput->value()))
+    {
+        RenderImage(*CurrentImage);
+    }
 }
 
 bool MainWindow::RenderImage(DicomImage& image)
