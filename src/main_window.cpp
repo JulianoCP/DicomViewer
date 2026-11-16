@@ -28,6 +28,8 @@ MainWindow::MainWindow(QWidget* parent) : QWidget(parent)
     connect(openButton, &QPushButton::clicked, this, &MainWindow::OpenDicomFile);
 }
 
+MainWindow::~MainWindow() = default;
+
 void MainWindow::OpenDicomFile()
 {
     const QString path = QFileDialog::getOpenFileName(this, "Abrir DICOM", {}, "DICOM (*.dcm);;Todos os arquivos (*)");
@@ -38,35 +40,52 @@ void MainWindow::OpenDicomFile()
     }
 
     MetadataLabel->hide();
-    DcmFileFormat dicomFile;
+
+    CurrentImage.reset();
+    CurrentFile = std::make_unique<DcmFileFormat>();
 
     const QByteArray filePath = path.toLocal8Bit();
-    const OFCondition loadStatus = dicomFile.loadFile(filePath.constData());
+    const OFCondition loadStatus = CurrentFile->loadFile(filePath.constData());
 
     if (loadStatus.bad())
     {
         PreviewReference->setText(QString("Erro ao ler o DICOM: %1").arg(loadStatus.text()));
+        CurrentFile.reset();
         return;
     }
 
-    DcmDataset* dataset = dicomFile.getDataset();
-    DicomImage image(dataset, dataset->getOriginalXfer());
+    DcmDataset* dataset = CurrentFile->getDataset();
+    CurrentImage = std::make_unique<DicomImage>(dataset, dataset->getOriginalXfer());
 
-    if (image.getStatus() != EIS_Normal)
+    if (CurrentImage->getStatus() != EIS_Normal)
     {
-        PreviewReference->setText(QString("Erro ao ler o DICOM: %1").arg(DicomImage::getString(image.getStatus())));
+        PreviewReference->setText(QString("Erro ao ler o DICOM: %1").arg(DicomImage::getString(CurrentImage->getStatus())));
+        CurrentImage.reset();
+        CurrentFile.reset();
         return;
     }
 
-    const bool hasWindowPreset = image.getWindowCount() > 0;
-    hasWindowPreset ? image.setWindow(0) : image.setMinMaxWindow();
+    const bool hasWindowPreset = CurrentImage->getWindowCount() > 0;
+    hasWindowPreset ? CurrentImage->setWindow(0) : CurrentImage->setMinMaxWindow();
 
+    if (!RenderImage(*CurrentImage))
+    {
+        CurrentImage.reset();
+        CurrentFile.reset();
+        return;
+    }
+
+    MetadataLabel->ShowMetadata(*dataset,static_cast<int>(CurrentImage->getWidth()), static_cast<int>(CurrentImage->getHeight()));
+}
+
+bool MainWindow::RenderImage(DicomImage& image)
+{
     const auto* pixels = static_cast<const uchar*>(image.getOutputData(8));
 
     if (!pixels)
     {
         PreviewReference->setText("Não foi possível gerar a imagem para exibição.");
-        return;
+        return false;
     }
 
     const int imageWidth = static_cast<int>(image.getWidth());
@@ -74,5 +93,5 @@ void MainWindow::OpenDicomFile()
     const QImage grayscale(pixels, imageWidth, imageHeight, imageWidth, QImage::Format_Grayscale8);
 
     PreviewReference->setPixmap(QPixmap::fromImage(grayscale.copy()));
-    MetadataLabel->ShowMetadata(*dataset, imageWidth, imageHeight);
+    return true;
 }
