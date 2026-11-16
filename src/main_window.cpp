@@ -11,6 +11,7 @@
 #include <QPixmap>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <dcmtk/dcmimage/diregist.h>
 
 MainWindow::MainWindow(QWidget* parent) : QWidget(parent)
 {
@@ -93,8 +94,11 @@ void MainWindow::OpenDicomFile()
         return;
     }
 
-    const bool hasWindowPreset = CurrentImage->getWindowCount() > 0;
-    hasWindowPreset ? CurrentImage->setWindow(0) : CurrentImage->setMinMaxWindow();
+    if (CurrentImage->isMonochrome())
+    {
+        const bool hasWindowPreset = CurrentImage->getWindowCount() > 0;
+        hasWindowPreset ? CurrentImage->setWindow(0) : CurrentImage->setMinMaxWindow();
+    }
 
     if (!RenderImage(*CurrentImage))
     {
@@ -105,7 +109,7 @@ void MainWindow::OpenDicomFile()
 
     MetadataLabel->ShowMetadata(*dataset,static_cast<int>(CurrentImage->getWidth()), static_cast<int>(CurrentImage->getHeight()));
 
-    if (CurrentImage->getWindow(WindowCenter, WindowWidth))
+    if (CurrentImage->isMonochrome() && CurrentImage->getWindow(WindowCenter, WindowWidth))
     {
         const QSignalBlocker blockLevel(LevelInput);
         const QSignalBlocker blockWidth(WidthInput);
@@ -142,8 +146,13 @@ bool MainWindow::RenderImage(DicomImage& image)
 
     const int imageWidth = static_cast<int>(image.getWidth());
     const int imageHeight = static_cast<int>(image.getHeight());
-    const QImage grayscale(pixels, imageWidth, imageHeight, imageWidth, QImage::Format_Grayscale8);
 
-    PreviewReference->setPixmap(QPixmap::fromImage(grayscale.copy()));
+    const bool isMonochrome = image.isMonochrome();
+    const QImage::Format format = isMonochrome ? QImage::Format_Grayscale8 : QImage::Format_RGB888;
+
+    const qsizetype bytesPerLine = qsizetype(imageWidth) * (isMonochrome ? 1 : 3);
+    const QImage renderedImage(pixels, imageWidth, imageHeight, bytesPerLine, format);
+
+    PreviewReference->setPixmap(QPixmap::fromImage(renderedImage.copy()));
     return true;
 }

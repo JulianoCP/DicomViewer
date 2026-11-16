@@ -10,9 +10,15 @@ preservando a proporção e a orientação dos pixels do arquivo.
 
 ![Visualizador DICOM aguardando a seleção de um arquivo](assets/viewer_empty.png)
 
-### Imagem carregada
+### Imagem monocromática
 
 ![Mamografia exibida com metadados e controles de Window Level e Window Width](assets/viewer_loaded.png)
+
+### Imagem RGB
+
+![Imagem DICOM colorida com metadados visíveis](assets/viewer_rgb_loaded.png)
+
+[Amostra usada no teste](assets/anonymized_lymph_node.dcm), distribuída pelo [projeto pydicom](https://pydicom.github.io/pydicom/stable/reference/examples.html) como `examples_rgb_color.dcm`.
 
 ## Ambiente testado
 
@@ -66,6 +72,8 @@ teste, comprimida com JPEG Lossless.
 ## Verificação manual
 
 - Abertura da amostra `assets/anonymized_mamo.dcm`, de 2394 × 2850 pixels.
+- Abertura da amostra colorida `assets/anonymized_lymph_node.dcm`, com exibição
+  em RGB e controles de Window Level e Window Width ocultos.
 - Comparação da imagem exibida com os pixels decodificados da amostra,
   confirmando a orientação tanto na janela normal quanto na maximizada.
 - Alteração de Window Level e Window Width com atualização da imagem exibida.
